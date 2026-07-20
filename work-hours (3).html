@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>ساعت کاری</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e9ece3;
+    --surface:#f5f7ef;
+    --surface-2:#eef1e6;
+    --ink:#202821;
+    --muted:#767d6d;
+    --accent:#b8823c;
+    --accent-soft:rgba(184,130,60,.16);
+    --accent-strong:#8f631f;
+    --border:#d7dbc7;
+    --danger:#a6573b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Vazirmatn',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  #app{
+    width:100%;
+    max-width:460px;
+    min-height:100vh;
+    background:var(--surface);
+    padding:22px 18px 40px;
+    position:relative;
+    box-shadow:0 0 40px rgba(0,0,0,0.04);
+  }
+
+  /* ---- Header / month nav ---- */
+  .nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .nav button{
+    width:38px;height:38px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--surface-2);
+    color:var(--ink);
+    font-size:16px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .nav button:hover{background:var(--accent-soft);}
+  .nav button:active{transform:scale(.92);}
+  .nav .month-label{
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:.2px;
+  }
+
+  /* ---- Hero total ---- */
+  .hero{
+    text-align:center;
+    padding:16px 0 18px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:14px;
+  }
+  .hero .num{
+    font-size:52px;
+    font-weight:800;
+    color:var(--accent-strong);
+    line-height:1;
+    font-variant-numeric:tabular-nums;
+  }
+  .hero .lbl{
+    margin-top:8px;
+    font-size:13px;
+    color:var(--muted);
+    font-weight:500;
+  }
+  .stats{
+    display:flex;
+    justify-content:center;
+    gap:28px;
+    margin-top:14px;
+  }
+  .stats div{text-align:center;}
+  .stats .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .stats .k{font-size:11px;color:var(--muted);margin-top:2px;}
+
+  .export-btn{
+    display:block;
+    width:100%;
+    margin:14px 0 18px;
+    padding:12px;
+    border-radius:12px;
+    border:1px dashed var(--border);
+    background:var(--surface-2);
+    color:var(--ink);
+    font-family:inherit;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .export-btn:active{transform:scale(.98);}
+
+  /* ---- Weekday header ---- */
+  .weekdays{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    margin-bottom:8px;
+  }
+  .weekdays span{
+    text-align:center;
+    font-size:11px;
+    color:var(--muted);
+    font-weight:600;
+  }
+
+  /* ---- Grid ---- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:6px;
+  }
+  .cell{
+    position:relative;
+    aspect-ratio:1/1;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:var(--surface-2);
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    padding-top:8px;
+    overflow:hidden;
+    opacity:0;
+    transform:translateY(6px);
+    animation:rise .35s ease forwards;
+  }
+  .cell.empty{
+    visibility:hidden;
+    pointer-events:none;
+  }
+  .cell .d{
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+    z-index:2;
+  }
+  .cell .h{
+    font-size:10px;
+    color:var(--accent-strong);
+    font-weight:700;
+    z-index:2;
+    margin-top:2px;
+    font-variant-numeric:tabular-nums;
+  }
+  .cell .bar{
+    position:absolute;
+    bottom:0;left:0;right:0;
+    background:var(--accent);
+    opacity:.28;
+    height:0%;
+    transition:height .25s ease;
+  }
+  .cell.today{
+    border-color:var(--accent);
+    border-width:1.5px;
+  }
+  .cell:active{transform:scale(.94);}
+
+  @keyframes rise{
+    to{opacity:1;transform:translateY(0);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .cell{animation:none;opacity:1;transform:none;}
+  }
+
+  /* ---- Bottom sheet ---- */
+  .backdrop{
+    position:fixed;inset:0;
+    background:rgba(20,25,18,.35);
+    opacity:0;pointer-events:none;
+    transition:opacity .2s ease;
+    z-index:10;
+  }
+  .backdrop.open{opacity:1;pointer-events:auto;}
+
+  .sheet{
+    position:fixed;
+    left:50%;
+    bottom:0;
+    transform:translate(-50%,100%);
+    width:100%;
+    max-width:460px;
+    background:var(--surface);
+    border-radius:20px 20px 0 0;
+    padding:18px 20px 26px;
+    box-shadow:0 -8px 30px rgba(0,0,0,.12);
+    transition:transform .25s ease;
+    z-index:11;
+    max-height:80vh;
+    overflow-y:auto;
+  }
+  .sheet.open{transform:translate(-50%,0);}
+  .sheet .title{
+    font-size:14px;
+    font-weight:600;
+    color:var(--muted);
+    margin-bottom:14px;
+    text-align:center;
+  }
+
+  /* ---- Time wheels ---- */
+  .time-groups{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .time-group{
+    flex:1;
+    text-align:center;
+    background:var(--surface-2);
+    border-radius:14px;
+    padding:10px 6px 12px;
+    border:1px solid var(--border);
+  }
+  .time-group .glabel{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:8px;
+    font-weight:700;
+  }
+  .wheel-pair{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    position:relative;
+  }
+  .wheel-pair::before{
+    content:'';
+    position:absolute;
+    top:36px;left:0;right:0;height:36px;
+    border-top:1.5px solid var(--accent);
+    border-bottom:1.5px solid var(--accent);
+    pointer-events:none;
+    border-radius:6px;
+  }
+  .wheel{
+    height:108px;
+    width:44px;
+    overflow-y:scroll;
+    scroll-snap-type:y mandatory;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .wheel::-webkit-scrollbar{display:none;}
+  .wheel-item{
+    height:36px;
+    line-height:36px;
+    font-size:15px;
+    font-variant-numeric:tabular-nums;
+    color:var(--muted);
+    scroll-snap-align:center;
+  }
+  .wheel-item.active{
+    color:var(--ink);
+    font-weight:700;
+    font-size:17px;
+  }
+  .colon{
+    font-size:16px;
+    font-weight:700;
+    color:var(--muted);
+  }
+
+  .duration-line{
+    text-align:center;
+    font-size:14px;
+    font-weight:700;
+    color:var(--accent-strong);
+    margin:14px 0 16px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .btn-row{
+    display:flex;
+    gap:10px;
+  }
+  .btn-primary{
+    flex:1;
+    padding:12px;
+    border-radius:12px;
+    border:none;
+    background:var(--ink);
+    color:#fff;
+    font-family:inherit;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .btn-danger{
+    padding:12px 18px;
+    border-radius:12px;
+    border:none;
+    background:none;
+    color:var(--danger);
+    font-family:inherit;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+  }
+
+  .export-option{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    padding:14px 16px;
+    border-radius:14px;
+    border:1px solid var(--border);
+    background:var(--surface-2);
+    color:var(--ink);
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    margin-bottom:10px;
+  }
+  .export-option small{
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    font-weight:400;
+    margin-top:3px;
+  }
+
+  #printArea{ display:none; }
+  @media print {
+    body *{ visibility:hidden; }
+    #printArea, #printArea *{ visibility:visible; }
+    #printArea{
+      display:block;
+      position:absolute; top:0; right:0; width:100%;
+      font-family:'Vazirmatn',sans-serif;
+      direction:rtl;
+    }
+    #printArea table{ width:100%; border-collapse:collapse; font-size:13px; }
+    #printArea th, #printArea td{ border:1px solid #ccc; padding:6px 8px; text-align:center; }
+    #printArea h2{ text-align:center; }
+    #printArea .summary{ margin-top:14px; font-weight:700; text-align:center; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="nav">
+    <button id="prevBtn" aria-label="ماه قبل">‹</button>
+    <div class="month-label" id="monthLabel"></div>
+    <button id="nextBtn" aria-label="ماه بعد">›</button>
+  </div>
+
+  <div class="hero">
+    <div class="num" id="totalNum">۰</div>
+    <div class="lbl">مجموع ساعت این ماه</div>
+    <div class="stats">
+      <div><div class="v" id="loggedDays">۰</div><div class="k">روز ثبت‌شده</div></div>
+      <div><div class="v" id="avgDay">۰</div><div class="k">میانگین روزانه</div></div>
+    </div>
+  </div>
+
+  <button class="export-btn" id="exportOpenBtn">دریافت خروجی این ماه</button>
+
+  <div class="weekdays">
+    <span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+
+<div class="sheet" id="sheet">
+  <div id="daySheetContent">
+    <div class="title" id="sheetTitle"></div>
+    <div class="time-groups">
+      <div class="time-group">
+        <div class="glabel">ورود</div>
+        <div class="wheel-pair">
+          <div class="wheel" id="sHourWheel"></div>
+          <div class="colon">:</div>
+          <div class="wheel" id="sMinWheel"></div>
+        </div>
+      </div>
+      <div class="time-group">
+        <div class="glabel">خروج</div>
+        <div class="wheel-pair">
+          <div class="wheel" id="eHourWheel"></div>
+          <div class="colon">:</div>
+          <div class="wheel" id="eMinWheel"></div>
+        </div>
+      </div>
+    </div>
+    <div class="duration-line" id="durationLine"></div>
+    <div class="btn-row">
+      <button class="btn-primary" id="daySaveBtn">ثبت</button>
+      <button class="btn-danger" id="clearBtn">پاک کردن</button>
+    </div>
+  </div>
+
+  <div id="exportSheetContent" style="display:none">
+    <div class="title" id="exportTitle"></div>
+    <button class="export-option" id="exportTxtBtn">
+      دانلود متن (TXT)
+      <small>یک فایل متنی ساده از گزارش این ماه</small>
+    </button>
+    <button class="export-option" id="exportPdfBtn">
+      چاپ / ذخیره PDF
+      <small>گزارش را برای ذخیره به‌صورت PDF باز می‌کند</small>
+    </button>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+(function(){
+  // ---------- Jalali <-> Gregorian conversion ----------
+  function div(a,b){ return Math.floor(a/b); }
+
+  function g2j(gy, gm, gd){
+    var g_d_m = [0,31,59,90,120,151,181,212,243,273,304,334];
+    var jy;
+    if (gy <= 1600) { jy = 0; gy -= 621; } else { jy = 979; gy -= 1600; }
+    var gy2 = (gm > 2) ? (gy + 1) : gy;
+    var days = (365*gy) + div(gy2+3,4) - div(gy2+99,100) + div(gy2+399,400) - 80 + gd + g_d_m[gm-1];
+    jy += 33 * div(days, 12053);
+    days %= 12053;
+    jy += 4 * div(days, 1461);
+    days %= 1461;
+    if (days > 365) {
+      jy += div(days - 1, 365);
+      days = (days - 1) % 365;
+    }
+    var jm, jd;
+    if (days < 186) {
+      jm = 1 + div(days, 31);
+      jd = 1 + (days % 31);
+    } else {
+      jm = 7 + div(days - 186, 30);
+      jd = 1 + ((days - 186) % 30);
+    }
+    return [jy, jm, jd];
+  }
+
+  function j2g(jy, jm, jd){
+    var gy;
+    if (jy <= 979) { gy = 621; } else { gy = 1600; jy -= 979; }
+    var days = (365*jy) + (div(jy,33)*8) + div(((jy%33)+3),4) + 78 + jd + ((jm<7) ? (jm-1)*31 : ((jm-7)*30)+186);
+    gy += 400 * div(days, 146097);
+    days %= 146097;
+    if (days > 36524) {
+      days--;
+      gy += 100 * div(days, 36524);
+      days %= 36524;
+      if (days >= 365) days++;
+    }
+    gy += 4 * div(days, 1461);
+    days %= 1461;
+    if (days > 365) {
+      gy += div(days - 1, 365);
+      days = (days - 1) % 365;
+    }
+    var gd = days + 1;
+    var isLeapG = ((gy % 4 === 0) && (gy % 100 !== 0)) || (gy % 400 === 0);
+    var sal_a = [0,31, isLeapG?29:28, 31,30,31,30,31,31,30,31,30,31];
+    var gm;
+    for (gm = 1; gm <= 12; gm++) {
+      if (gd <= sal_a[gm]) break;
+      gd -= sal_a[gm];
+    }
+    return [gy, gm, gd];
+  }
+
+  function isJalaliLeap(jy){
+    var g = j2g(jy, 12, 30);
+    var back = g2j(g[0], g[1], g[2]);
+    return back[1] === 12 && back[2] === 30;
+  }
+
+  function daysInJalaliMonth(jy, jm){
+    if (jm <= 6) return 31;
+    if (jm <= 11) return 30;
+    return isJalaliLeap(jy) ? 30 : 29;
+  }
+
+  function firstWeekday(jy, jm){ // 0=Sat ... 6=Fri
+    var g = j2g(jy, jm, 1);
+    var d = new Date(g[0], g[1]-1, g[2]);
+    var jsDay = d.getDay(); // 0=Sun
+    return (jsDay + 1) % 7;
+  }
+
+  var monthNames = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+
+  function toFa(n){
+    var faDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+    return String(n).replace(/[0-9]/g, function(d){ return faDigits[d]; }).replace('.','٫');
+  }
+  function pad2(n){ return (n<10 ? '0' : '') + n; }
+
+  // ---------- State ----------
+  var today = new Date();
+  var todayJ = g2j(today.getFullYear(), today.getMonth()+1, today.getDate());
+  var jy = todayJ[0], jm = todayJ[1];
+  var monthData = {}; // {day: {s:"09:00", e:"17:00"}}
+  var selectedDay = null;
+  var curr = { sh:9, sm:0, eh:17, em:0 };
+
+  var grid = document.getElementById('grid');
+  var monthLabel = document.getElementById('monthLabel');
+  var totalNum = document.getElementById('totalNum');
+  var loggedDays = document.getElementById('loggedDays');
+  var avgDay = document.getElementById('avgDay');
+  var sheet = document.getElementById('sheet');
+  var backdrop = document.getElementById('backdrop');
+  var sheetTitle = document.getElementById('sheetTitle');
+  var daySheetContent = document.getElementById('daySheetContent');
+  var exportSheetContent = document.getElementById('exportSheetContent');
+  var exportTitle = document.getElementById('exportTitle');
+  var durationLine = document.getElementById('durationLine');
+
+  function storageKey(y,m){ return 'hours-' + y + '-' + m; }
+
+  function parseHM(str){
+    var parts = str.split(':');
+    return { h: parseInt(parts[0],10), m: parseInt(parts[1],10) };
+  }
+
+  function calcMinutes(entry){
+    if (!entry) return 0;
+    var s = parseHM(entry.s), e = parseHM(entry.e);
+    var diff = (e.h*60+e.m) - (s.h*60+s.m);
+    if (diff < 0) diff += 24*60;
+    return diff;
+  }
+
+  function fmtMinutes(mins){
+    mins = Math.round(mins);
+    var h = Math.floor(mins/60), m = mins % 60;
+    return toFa(h) + ':' + toFa(pad2(m));
+  }
+
+  function safeStorageGet(key){
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){
+      return null;
+    }
+  }
+
+  function safeStorageSet(key, value){
+    try {
+      localStorage.setItem(key, value);
+    } catch(e){}
+  }
+
+  function loadMonth(){
+    monthData = safeStorageGet(storageKey(jy,jm)) || {};
+    render();
+  }
+
+  function saveMonth(){
+    safeStorageSet(storageKey(jy,jm), JSON.stringify(monthData));
+  }
+
+  function render(){
+    monthLabel.textContent = monthNames[jm-1] + ' ' + toFa(jy);
+    var dim = daysInJalaliMonth(jy, jm);
+    var startPad = firstWeekday(jy, jm);
+
+    grid.innerHTML = '';
+    for (var i=0; i<startPad; i++){
+      var pad = document.createElement('div');
+      pad.className = 'cell empty';
+      grid.appendChild(pad);
+    }
+
+    var totalMin = 0, logged = 0;
+    for (var day=1; day<=dim; day++){
+      var entry = monthData[day];
+      var mins = calcMinutes(entry);
+      if (mins > 0){ totalMin += mins; logged++; }
+
+      var cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.animationDelay = (day * 12) + 'ms';
+      if (jy === todayJ[0] && jm === todayJ[1] && day === todayJ[2]) cell.classList.add('today');
+
+      var dSpan = document.createElement('div');
+      dSpan.className = 'd';
+      dSpan.textContent = toFa(day);
+      cell.appendChild(dSpan);
+
+      if (mins > 0){
+        var hSpan = document.createElement('div');
+        hSpan.className = 'h';
+        hSpan.textContent = fmtMinutes(mins);
+        cell.appendChild(hSpan);
+      }
+
+      var bar = document.createElement('div');
+      bar.className = 'bar';
+      var pct = Math.min(100, (mins / 60 / 12) * 100);
+      bar.style.height = pct + '%';
+      cell.appendChild(bar);
+
+      (function(d){
+        cell.addEventListener('click', function(){ openDaySheet(d); });
+      })(day);
+
+      grid.appendChild(cell);
+    }
+
+    totalNum.textContent = fmtMinutes(totalMin);
+    loggedDays.textContent = toFa(logged);
+    var avgMin = logged ? (totalMin/logged) : 0;
+    avgDay.textContent = fmtMinutes(avgMin);
+  }
+
+  // ---------- Wheel picker ----------
+  function buildWheel(container, values, initialValue, onChange){
+    container.innerHTML = '';
+    var itemH = 36;
+    var spacerTop = document.createElement('div');
+    spacerTop.style.height = itemH + 'px';
+    container.appendChild(spacerTop);
+
+    values.forEach(function(v){
+      var it = document.createElement('div');
+      it.className = 'wheel-item';
+      it.textContent = toFa(pad2(v));
+      it.dataset.value = v;
+      container.appendChild(it);
+    });
+
+    var spacerBot = document.createElement('div');
+    spacerBot.style.height = itemH + 'px';
+    container.appendChild(spacerBot);
+
+    var idx = values.indexOf(initialValue);
+    if (idx < 0) idx = 0;
+
+    requestAnimationFrame(function(){
+      container.scrollTop = idx * itemH;
+      updateActiveVisual();
+    });
+
+    function updateActiveVisual(){
+      var i = Math.round(container.scrollTop / itemH);
+      var items = container.querySelectorAll('.wheel-item');
+      for (var n=0; n<items.length; n++){
+        items[n].classList.toggle('active', n === i);
+      }
+    }
+
+    var scrollTimeout = null;
+    container.addEventListener('scroll', function(){
+      updateActiveVisual();
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(function(){
+        var i = Math.round(container.scrollTop / itemH);
+        i = Math.max(0, Math.min(values.length - 1, i));
+        container.scrollTo({ top: i * itemH, behavior: 'smooth' });
+        onChange(values[i]);
+        updateActiveVisual();
+      }, 120);
+    });
+  }
+
+  function updateDurationLine(){
+    var diff = (curr.eh*60+curr.em) - (curr.sh*60+curr.sm);
+    if (diff < 0) diff += 24*60;
+    var h = Math.floor(diff/60), m = diff % 60;
+    durationLine.textContent = toFa(h) + ' ساعت و ' + toFa(pad2(m)) + ' دقیقه';
+  }
+
+  var hoursArr = [];
+  for (var hh=0; hh<24; hh++) hoursArr.push(hh);
+  var minsArr = [];
+  for (var mm=0; mm<60; mm+=5) minsArr.push(mm);
+
+  function openDaySheet(day){
+    selectedDay = day;
+    sheetTitle.textContent = monthNames[jm-1] + ' ' + toFa(day);
+    daySheetContent.style.display = '';
+    exportSheetContent.style.display = 'none';
+
+    var entry = monthData[day];
+    var s = entry ? parseHM(entry.s) : { h:9, m:0 };
+    var e = entry ? parseHM(entry.e) : { h:17, m:0 };
+    curr = { sh:s.h, sm: Math.round(s.m/5)*5 % 60, eh:e.h, em: Math.round(e.m/5)*5 % 60 };
+
+    buildWheel(document.getElementById('sHourWheel'), hoursArr, curr.sh, function(v){ curr.sh=v; updateDurationLine(); });
+    buildWheel(document.getElementById('sMinWheel'), minsArr, curr.sm, function(v){ curr.sm=v; updateDurationLine(); });
+    buildWheel(document.getElementById('eHourWheel'), hoursArr, curr.eh, function(v){ curr.eh=v; updateDurationLine(); });
+    buildWheel(document.getElementById('eMinWheel'), minsArr, curr.em, function(v){ curr.em=v; updateDurationLine(); });
+
+    updateDurationLine();
+    openSheetEl();
+  }
+
+  function openExportSheet(){
+    exportTitle.textContent = 'خروجی ' + monthNames[jm-1] + ' ' + toFa(jy);
+    daySheetContent.style.display = 'none';
+    exportSheetContent.style.display = '';
+    openSheetEl();
+  }
+
+  function openSheetEl(){
+    backdrop.classList.add('open');
+    sheet.classList.add('open');
+  }
+  function closeSheet(){
+    backdrop.classList.remove('open');
+    sheet.classList.remove('open');
+    selectedDay = null;
+  }
+
+  document.getElementById('daySaveBtn').addEventListener('click', function(){
+    if (selectedDay === null) return;
+    monthData[selectedDay] = { s: pad2(curr.sh)+':'+pad2(curr.sm), e: pad2(curr.eh)+':'+pad2(curr.em) };
+    saveMonth();
+    render();
+    closeSheet();
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    if (selectedDay === null) return;
+    delete monthData[selectedDay];
+    saveMonth();
+    render();
+    closeSheet();
+  });
+
+  backdrop.addEventListener('click', closeSheet);
+
+  document.getElementById('prevBtn').addEventListener('click', function(){
+    jm--; if (jm < 1){ jm = 12; jy--; }
+    loadMonth();
+  });
+  document.getElementById('nextBtn').addEventListener('click', function(){
+    jm++; if (jm > 12){ jm = 1; jy++; }
+    loadMonth();
+  });
+
+  document.getElementById('exportOpenBtn').addEventListener('click', openExportSheet);
+
+  // ---------- Export: text ----------
+  function buildReportRows(){
+    var dim = daysInJalaliMonth(jy, jm);
+    var rows = [];
+    var totalMin = 0, logged = 0;
+    for (var day=1; day<=dim; day++){
+      var entry = monthData[day];
+      if (entry){
+        var mins = calcMinutes(entry);
+        totalMin += mins; logged++;
+        rows.push({ day:day, s:entry.s, e:entry.e, mins:mins });
+      }
+    }
+    return { rows: rows, totalMin: totalMin, logged: logged };
+  }
+
+  function toFaTime(t){
+    var p = t.split(':');
+    return toFa(p[0]) + ':' + toFa(p[1]);
+  }
+
+  document.getElementById('exportTxtBtn').addEventListener('click', function(){
+    var data = buildReportRows();
+    var lines = [];
+    lines.push('گزارش ساعت کاری - ' + monthNames[jm-1] + ' ' + toFa(jy));
+    lines.push('------------------------------');
+    data.rows.forEach(function(r){
+      lines.push(toFa(r.day) + ' ' + monthNames[jm-1] + ':  ' + toFaTime(r.s) + ' تا ' + toFaTime(r.e) + '  —  ' + fmtMinutes(r.mins) + ' ساعت');
+    });
+    lines.push('------------------------------');
+    lines.push('تعداد روزهای ثبت‌شده: ' + toFa(data.logged));
+    lines.push('مجموع ساعت: ' + fmtMinutes(data.totalMin));
+    lines.push('میانگین روزانه: ' + fmtMinutes(data.logged ? data.totalMin/data.logged : 0));
+
+    var text = lines.join('\n');
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'ساعت-کاری-' + monthNames[jm-1] + '-' + jy + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    closeSheet();
+  });
+
+  document.getElementById('exportPdfBtn').addEventListener('click', function(){
+    var data = buildReportRows();
+    var html = '<h2>گزارش ساعت کاری — ' + monthNames[jm-1] + ' ' + toFa(jy) + '</h2>';
+    html += '<table><tr><th>روز</th><th>ورود</th><th>خروج</th><th>ساعت</th></tr>';
+    data.rows.forEach(function(r){
+      html += '<tr><td>' + toFa(r.day) + '</td><td>' + toFaTime(r.s) + '</td><td>' + toFaTime(r.e) + '</td><td>' + fmtMinutes(r.mins) + '</td></tr>';
+    });
+    html += '</table>';
+    html += '<div class="summary">مجموع ساعت: ' + fmtMinutes(data.totalMin) + ' &nbsp;|&nbsp; روزهای ثبت‌شده: ' + toFa(data.logged) + ' &nbsp;|&nbsp; میانگین روزانه: ' + fmtMinutes(data.logged ? data.totalMin/data.logged : 0) + '</div>';
+    document.getElementById('printArea').innerHTML = html;
+    closeSheet();
+    setTimeout(function(){ window.print(); }, 150);
+  });
+
+  loadMonth();
+})();
+</script>
+</body>
+</html>
